@@ -8,6 +8,7 @@
   "dependencies": {
     "dotenv": "^16.4.5",
     "express": "^4.21.0",
+    "serverless-http": "^3.2.0",
     "twilio": "^5.3.3"
   },
   "devDependencies": {
@@ -16,6 +17,6 @@
     "nodemon": "^3.1.7"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node api/index.js"
   }
 }
