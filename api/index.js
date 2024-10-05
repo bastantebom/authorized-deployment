@@ -17,7 +17,10 @@ app.get("/", (req, res) => {
 });
 
 app.post("/send-sms", (req, res) => {
-  const date = new Date();
+  const date = new Date().toLocaleString("en-NZ", {
+    timeZone: "Pacific/Auckland",
+  });
+
   client.messages
     .create({
       body: `Your Jenkins job sent request on  ${date} and  is waiting for approval. Reply "approved" to DEPLOYMENT AGENT to proceed or otherwise reply "no"`,
