@@ -23,9 +23,9 @@ app.post("/send-sms", (req, res) => {
 
   client.messages
     .create({
-      body: `Your Jenkins job sent request on  ${date} and  is waiting for approval. Reply "approved" to DEPLOYMENT AGENT to proceed or otherwise reply "no"`,
+      body: `Your Jenkins job sent request on  ${date} and  is waiting for approval. Reply "yes" to DEPLOYMENT AGENT to proceed, otherwise reply "no"`,
       from: "+19254758253", // Your Twilio phone number
-      to: "+64273814842", // Recipient's phone number
+      to: "+64274476221", // Recipient's phone number
     })
     .then((message) => {
       console.log(message.sid); // Log the message SID
