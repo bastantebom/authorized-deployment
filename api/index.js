@@ -20,7 +20,7 @@ app.post("/send-sms", (req, res) => {
   const date = new Date();
   client.messages
     .create({
-      body: `Your Jenkins job sent request on  ${date} and  is waiting for approval. Reply "approved" to DEPLOYMENT AGENT to proceed`,
+      body: `Your Jenkins job sent request on  ${date} and  is waiting for approval. Reply "approved" to DEPLOYMENT AGENT to proceed or otherwise reply "no"`,
       from: "+19254758253", // Your Twilio phone number
       to: "+64273814842", // Recipient's phone number
     })
