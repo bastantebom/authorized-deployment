@@ -37,6 +37,10 @@ app.post("/response", (req, res) => {
   const smsResponse = req.body.Body.trim().toLowerCase();
   if (smsResponse === "yes") {
     smsApproved = true;
+    console.log(json.stringify(smsResponse));
+    console.log(
+      `Received SMS from ${fromNumber} to ${toNumber}: ${messageBody}`
+    );
     res.send("<Response><Message>Approval Received</Message></Response>");
   } else {
     res.send("<Response><Message>Approval Denied</Message></Response>");
