@@ -33,21 +33,17 @@ app.post("/send-sms", (req, res) => {
     });
 });
 
-app.post("/response", (req, res) => {
-  const smsResponse = req.body.Body.trim().toLowerCase();
-  if (smsResponse === "yes") {
+app.post("/sms-response", (req, res) => {
+  const incomingMessage = req.body.Body.trim().toLowerCase();
+  if (incomingMessage === "yes") {
     smsApproved = true;
-    console.log(json.stringify(smsResponse));
-    console.log(
-      `Received SMS from ${fromNumber} to ${toNumber}: ${messageBody}`
-    );
+    console.log(json.stringify(incomingMessage));
     res.send("<Response><Message>Approval Received</Message></Response>");
   } else {
     res.send("<Response><Message>Approval Denied</Message></Response>");
   }
 });
 
-// Endpoint to check if approval has been received
 app.get("/check-approval", (req, res) => {
   res.json({ approved: smsApproved });
 });
