@@ -5,8 +5,12 @@ const app = express();
 const accountSid = process.env.ACCOUNT_SID;
 const authToken = process.env.AUTH_TOKEN;
 const client = new twilio(accountSid, authToken);
+const bodyParser = require("body-parser");
 
 const port = process.env.PORT || 3000;
+let smsApproved = false;
+
+app.use(bodyParser.urlencoded({ extended: false }));
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
@@ -27,6 +31,21 @@ app.post("/send-sms", (req, res) => {
       console.error(err);
       res.status(500).json({ success: false, error: err.message }); // Send error response
     });
+});
+
+app.post("/response", (req, res) => {
+  const smsResponse = req.body.Body.trim().toLowerCase();
+  if (smsResponse === "yes") {
+    smsApproved = true;
+    res.send("<Response><Message>Approval Received</Message></Response>");
+  } else {
+    res.send("<Response><Message>Approval Denied</Message></Response>");
+  }
+});
+
+// Endpoint to check if approval has been received
+app.get("/check-approval", (req, res) => {
+  res.json({ approved: smsApproved });
 });
 
 app.listen(port, () => {
