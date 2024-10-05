@@ -1,7 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const twilio = require("twilio");
-const serverless = require("serverless-http");
 const app = express();
 const accountSid = process.env.ACCOUNT_SID;
 const authToken = process.env.AUTH_TOKEN;
@@ -33,5 +32,3 @@ app.post("/send-sms", (req, res) => {
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
-
-module.exports.handler = serverless(app);
