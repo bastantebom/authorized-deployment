@@ -8,7 +8,16 @@ const client = new twilio(accountSid, authToken);
 const bodyParser = require("body-parser");
 
 const port = process.env.PORT || 3000;
-let smsApproved = false;
+
+// Track approvals
+let approvals = {
+  "+64274476221": false, // Approver 1
+  "+64273814842": false, // Approver 2
+};
+
+let smsApproved = false; // Global approval status
+let approvalTimeout = null; // Timeout handler for resetting approvals
+const approvalTimeoutDuration = 15 * 60 * 1000; // 15 minutes
 
 app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -16,37 +25,83 @@ app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
+// Function to reset approvals
+const resetApprovals = () => {
+  approvals["+64274476221"] = false;
+  approvals["+64273814842"] = false;
+  smsApproved = false;
+  console.log("Approvals have been reset due to timeout.");
+};
+
+// Function to check if both approvals are "yes"
+const allApproved = (approvals) =>
+  approvals["+64274476221"] && approvals["+64273814842"];
+
+// Function to send appropriate Twilio response
+const sendResponse = (res, message) => {
+  res.send(`<Response><Message>${message}</Message></Response>`);
+};
+
+// Send SMS and start the approval timer
 app.post("/send-sms", (req, res) => {
   const date = new Date().toLocaleString("en-NZ", {
     timeZone: "Pacific/Auckland",
   });
+  const body = `Your Jenkins job sent request on  ${date} and is waiting for approval. Send "yes" to DEPLOYMENT AGENT to proceed, otherwise send "no"`;
+  const from = "+19254758253"; // Twilio number
+  const phoneNumbers = ["+64274476221", "+64273814842"];
 
-  client.messages
-    .create({
-      body: `Your Jenkins job sent request on  ${date} and  is waiting for approval. Reply "yes" to DEPLOYMENT AGENT to proceed, otherwise reply "no"`,
-      from: "+19254758253", // Your Twilio phone number
-      to: "+64274476221", // Recipient's phone number
-    })
-    .then((message) => {
-      console.log(message.sid); // Log the message SID
-      res.status(200).json({ success: true, messageSid: message.sid }); // Send success response
-    })
-    .catch((err) => {
-      console.error(err);
-      res.status(500).json({ success: false, error: err.message }); // Send error response
-    });
+  // Send SMS to both approvers
+  phoneNumbers.forEach((number) => {
+    client.messages
+      .create({
+        body,
+        from,
+        to: number, // Recipient's phone number
+      })
+      .then((message) => {
+        console.log(`Message sent to ${number}: ${message.sid}`);
+      })
+      .catch((error) => console.error(`Failed to send to ${number}: ${error}`));
+  });
+
+  // Start a timer to reset approvals if no response in 5 minutes
+  approvalTimeout = setTimeout(() => {
+    resetApprovals();
+  }, approvalTimeoutDuration);
+
+  res.status(200).json({ success: true, message: "SMS sent for approval" });
 });
 
+// Handle SMS response for approval
 app.post("/sms-response", (req, res) => {
   const incomingMessage = req.body.Body.trim().toLowerCase();
-  if (incomingMessage === "approved") {
-    smsApproved = true;
-    res.send("<Response><Message>Approval Received</Message></Response>");
+  const fromNumber = req.body.From; // Get the number of the person who sent the message
+
+  if (["yes", "no"].includes(incomingMessage)) {
+    if (approvals.hasOwnProperty(fromNumber)) {
+      // Update approval status for this approver
+      approvals[fromNumber] = incomingMessage === "yes";
+
+      // Check if both approvals are "yes"
+      if (allApproved(approvals)) {
+        smsApproved = true;
+        clearTimeout(approvalTimeout); // Clear the timeout since both responses are received
+        console.log("Both approvals received.");
+      } else {
+        smsApproved = false;
+      }
+
+      sendResponse(res, "Approval received. Thank you!");
+    } else {
+      sendResponse(res, "You are not authorized to approve.");
+    }
   } else {
-    res.send("<Response><Message>Approval Denied</Message></Response>");
+    sendResponse(res, "Invalid response. Please reply with 'yes' or 'no'.");
   }
 });
 
+// Check if both approvals are received
 app.get("/check-approval", (req, res) => {
   res.json({ approved: smsApproved });
 });
