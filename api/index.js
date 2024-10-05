@@ -20,7 +20,7 @@ app.post("/send-sms", (req, res) => {
   client.messages
     .create({
       body: 'Your Jenkins job is waiting for approval. Reply "Yes" to approve.',
-      from: "+15202239555", // Your Twilio phone number
+      from: "+19254758253", // Your Twilio phone number
       to: "+64273814842", // Recipient's phone number
     })
     .then((message) => {
@@ -37,7 +37,6 @@ app.post("/sms-response", (req, res) => {
   const incomingMessage = req.body.Body.trim().toLowerCase();
   if (incomingMessage === "yes") {
     smsApproved = true;
-    console.log(json.stringify(incomingMessage));
     res.send("<Response><Message>Approval Received</Message></Response>");
   } else {
     res.send("<Response><Message>Approval Denied</Message></Response>");
