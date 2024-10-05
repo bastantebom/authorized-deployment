@@ -17,9 +17,10 @@ app.get("/", (req, res) => {
 });
 
 app.post("/send-sms", (req, res) => {
+  const date = new Date();
   client.messages
     .create({
-      body: 'Your Jenkins job is waiting for approval. Reply "Yes" to approve.',
+      body: `Your Jenkins job sent request on  ${date} and  is waiting for approval. Reply "approved" to DEPLOYMENT AGENT to proceed`,
       from: "+19254758253", // Your Twilio phone number
       to: "+64273814842", // Recipient's phone number
     })
@@ -35,7 +36,7 @@ app.post("/send-sms", (req, res) => {
 
 app.post("/sms-response", (req, res) => {
   const incomingMessage = req.body.Body.trim().toLowerCase();
-  if (incomingMessage === "yes") {
+  if (incomingMessage === "approved") {
     smsApproved = true;
     res.send("<Response><Message>Approval Received</Message></Response>");
   } else {
