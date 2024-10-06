@@ -104,7 +104,19 @@ app.post("/sms-response", (req, res) => {
 
 // Check if both approvals are received
 app.get("/check-approval", (req, res) => {
-  res.json({ approved: smsApproved });
+  const approver1 = approvals["+64274476221"];
+  const approver2 = approvals["+64273814842"];
+
+  if (approver1 && approver2) {
+    // Both approvals received
+    res.json({ approved: true, rejected: false });
+  } else if (approver1 === false || approver2 === false) {
+    // Rejection received from one or both approvers
+    res.json({ approved: false, rejected: true });
+  } else {
+    // Still waiting for responses
+    res.json({ approved: false, rejected: false });
+  }
 });
 
 app.listen(port, () => {
