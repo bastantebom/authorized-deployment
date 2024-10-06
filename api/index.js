@@ -11,13 +11,13 @@ const port = process.env.PORT || 3000;
 
 // Track approvals
 let approvals = {
-  "+64274476221": false, // Approver 1
-  "+64273814842": false, // Approver 2
+  "+64274476221": 0, // 0 = no response, 1 = approved, 2 = rejected
+  "+64274219908": 0,
 };
 
-let smsApproved = false; // Global approval status
+let smsApproved = 0; // 0 = incomplete, 1 = complete, 2 = rejected
 let approvalTimeout = null; // Timeout handler for resetting approvals
-const approvalTimeoutDuration = 15 * 60 * 1000; // 15 minutes
+const approvalTimeoutDuration = 10 * 60 * 1000; // 15 minutes
 
 app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -27,15 +27,21 @@ app.get("/", (req, res) => {
 
 // Function to reset approvals
 const resetApprovals = () => {
-  approvals["+64274476221"] = false;
-  approvals["+64273814842"] = false;
-  smsApproved = false;
+  approvals["+64274476221"] = 0;
+  approvals["+64274219908"] = 0;
+  smsApproved = 0;
   console.log("Approvals have been reset due to timeout.");
 };
 
 // Function to check if both approvals are "yes"
 const allApproved = (approvals) =>
-  approvals["+64274476221"] && approvals["+64273814842"];
+  approvals["+64274476221"] === 1 && approvals["+64274219908"] === 1;
+
+const incomplete = (approvals) =>
+  approvals["+64274476221"] === 0 || approvals["+64274219908"] === 0;
+
+const rejected = (approvals) =>
+  approvals["+64274476221"] === 2 || approvals["+64274219908"] === 2;
 
 // Function to send appropriate Twilio response
 const sendResponse = (res, message) => {
@@ -49,7 +55,7 @@ app.post("/send-sms", (req, res) => {
   });
   const body = `Your github workflow job for deployment sent request on  ${date} and is waiting for approval. Send "yes" to DEPLOYMENT AGENT to proceed, otherwise send "no"`;
   const from = "+19254758253"; // Twilio number
-  const phoneNumbers = ["+64274476221", "+64273814842"];
+  const phoneNumbers = ["+64274476221", "+64274219908"];
 
   // Send SMS to both approvers
   phoneNumbers.forEach((number) => {
@@ -82,18 +88,23 @@ app.post("/sms-response", (req, res) => {
   if (["yes", "no"].includes(incomingMessage)) {
     if (approvals.hasOwnProperty(fromNumber)) {
       // Update approval status for this approver
-      approvals[fromNumber] = incomingMessage === "yes";
+      approvals[fromNumber] = incomingMessage === "yes" ? 1 : 2;
 
       // Check if both approvals are "yes"
       if (allApproved(approvals)) {
-        smsApproved = true;
+        smsApproved = 1;
         clearTimeout(approvalTimeout); // Clear the timeout since both responses are received
         console.log("Both approvals received.");
-      } else {
-        smsApproved = false;
+        sendResponse(res, "Approval received. Thank you!");
+      } else if (rejected(approvals)) {
+        smsApproved = 2;
+        clearTimeout(approvalTimeout); // Clear the timeout since already rejected
+        console.log("Approval rejected.");
+        sendResponse(res, "Your approval was rejected.");
+      } else if (incomplete(approvals)) {
+        smsApproved = 0;
+        sendResponse(res, "Approval received, waiting for the other approver.");
       }
-
-      sendResponse(res, "Approval received. Thank you!");
     } else {
       sendResponse(res, "You are not authorized to approve.");
     }
@@ -104,19 +115,7 @@ app.post("/sms-response", (req, res) => {
 
 // Check if both approvals are received
 app.get("/check-approval", (req, res) => {
-  const approver1 = approvals["+64274476221"];
-  const approver2 = approvals["+64273814842"];
-
-  if (approver1 && approver2) {
-    // Both approvals received
-    res.json({ approved: true, rejected: false });
-  } else if (approver1 === false || approver2 === false) {
-    // Rejection received from one or both approvers
-    res.json({ approved: false, rejected: true });
-  } else {
-    // Still waiting for responses
-    res.json({ approved: false, rejected: false });
-  }
+  res.json({ status: smsApproved });
 });
 
 app.listen(port, () => {
