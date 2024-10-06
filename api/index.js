@@ -30,7 +30,7 @@ const resetApprovals = () => {
   approvals["+64274476221"] = false;
   approvals["+64273814842"] = false;
   smsApproved = false;
-  console.log("Approvals have been reset due to timeout.");
+  console.log("Approvals have been reset due to timeout or completion.");
 };
 
 // Function to check if both approvals are "yes"
@@ -44,10 +44,11 @@ const sendResponse = (res, message) => {
 
 // Send SMS and start the approval timer
 app.post("/send-sms", (req, res) => {
+  console.log(approvals);
   const date = new Date().toLocaleString("en-NZ", {
     timeZone: "Pacific/Auckland",
   });
-  const body = `Your Jenkins job sent request on  ${date} and is waiting for approval. Send "yes" to DEPLOYMENT AGENT to proceed, otherwise send "no"`;
+  const body = `Your GitHub workflow job for deployment sent a request on ${date} and is waiting for approval. Send "yes" to DEPLOYMENT AGENT to proceed, otherwise send "no".`;
   const from = "+19254758253"; // Twilio number
   const phoneNumbers = ["+64274476221", "+64273814842"];
 
@@ -65,10 +66,9 @@ app.post("/send-sms", (req, res) => {
       .catch((error) => console.error(`Failed to send to ${number}: ${error}`));
   });
 
-  // Start a timer to reset approvals if no response in 5 minutes
-  approvalTimeout = setTimeout(() => {
-    resetApprovals();
-  }, approvalTimeoutDuration);
+  // Start/reset a timer to reset approvals if no response within 15 minutes
+  if (approvalTimeout) clearTimeout(approvalTimeout);
+  approvalTimeout = setTimeout(resetApprovals, approvalTimeoutDuration);
 
   res.status(200).json({ success: true, message: "SMS sent for approval" });
 });
@@ -83,12 +83,36 @@ app.post("/sms-response", (req, res) => {
       // Update approval status for this approver
       approvals[fromNumber] = incomingMessage === "yes";
 
+      // Reset timeout after each response to allow time for both approvals
+      if (approvalTimeout) clearTimeout(approvalTimeout);
+      approvalTimeout = setTimeout(resetApprovals, approvalTimeoutDuration);
+
       // Check if both approvals are "yes"
       if (allApproved(approvals)) {
         smsApproved = true;
-        clearTimeout(approvalTimeout); // Clear the timeout since both responses are received
+        clearTimeout(approvalTimeout); // Clear the timeout since both approvals are received
         console.log("Both approvals received.");
+
+        // Send approval SMS to the admin/recipient after both approvals
+        const approvalMessage =
+          "Both approvers have approved. Deployment is ready to proceed.";
+        const adminPhoneNumber = "+64270000000"; // Example admin number
+
+        client.messages
+          .create({
+            body: approvalMessage,
+            from: "+19254758253", // Twilio number
+            to: adminPhoneNumber,
+          })
+          .then((message) => {
+            console.log(`Approval message sent to admin: ${message.sid}`);
+            resetApprovals(); // Reset approvals after successful message is sent
+          })
+          .catch((error) => {
+            console.error(`Failed to send approval message: ${error}`);
+          });
       } else {
+        console.log(`Rejected`);
         smsApproved = false;
       }
 
